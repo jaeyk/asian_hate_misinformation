@@ -11,6 +11,7 @@ pacman::p_load(
   SnowballC, # stemming 
   textclean, # text preprocessing 
   ggthemes,
+  ggpubr,
   text2vec, # word embedding 
   widyr,
   patchwork, # arranging ggplots
