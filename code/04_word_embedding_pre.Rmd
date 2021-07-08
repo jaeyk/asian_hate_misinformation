@@ -42,7 +42,7 @@ purrr::walk(file.list, source)
 
 ## Files 
 
-```{r eval = FALSE}
+```{r}
 df <- fread(here("processed_data", "text_ready.csv"))
 
 df <- df %>%
@@ -54,7 +54,7 @@ df <- subset(df, date < as.Date(c("2020-03-16")))
 
 # Preprocessing 
 
-```{r eval = FALSE}
+```{r}
 # Call stop words dictionary 
 data("stop_words")
 
@@ -80,7 +80,7 @@ nested_df <- filtered_df %>%
 
 ## Calculating point-wise mutual information
 
-```{r eval = FALSE}
+```{r}
 plan(multisession)  ## for parallel processing
 
 unnested_df <- nested_df %>%
@@ -88,7 +88,7 @@ unnested_df <- nested_df %>%
   unnest(words) 
 ```
 
-```{r eval = FALSE}
+```{r}
 tidy_pmi <- unnested_df %>%
   unite(window_id, date, window_id) %>%
   pairwise_pmi(word, window_id)
@@ -98,7 +98,7 @@ save(unnested_df, tidy_pmi, file = here("processed_data", "tidy_pmi_pre.Rdata"))
 
 ## Reducing dimensions 
 
-```{r eval = FALSE}
+```{r}
 # 100 dimensions using Singular Value Composition
 tidy_word_vectors <- tidy_pmi %>%
   widely_svd(

@@ -96,10 +96,8 @@ df <- df %>%
            chinese_virus = as.numeric(str_detect(full_text, "chinese flu|chineseflu|chinese virus|chinesevirus")),
            kung_flu = as.numeric(str_detect(full_text, "kung flu|kungflu")), 
            wuhan_virus = as.numeric(str_detect(full_text, "wuhan virus|wuhanvirus")),
-           anti_racism = as.numeric(str_detect(full_text, "antiracism|antiasian|stophate|acttochange|stopaapihate|stophatecrimes|racism|racist|hatecrime")),
-           racism = ifelse(chinese_virus == 1 | kung_flu == 1 | wuhan_virus == 1, 1, 0)
-           )
-           
+           bat_soup = 
+as.numeric(str_detect(full_text, "bat soup")))
 ```
 
 ### Date
@@ -126,8 +124,7 @@ twitter <- bind_rows(
     mutate(add_normalized(df, chinese_virus), Terms = "Chinese virus"),
     mutate(add_normalized(df, kung_flu), Terms = "Kung flu"),
     mutate(add_normalized(df, wuhan_virus), Terms = "Wuhan virus"),
-    mutate(add_normalized(df, anti_racism), Terms = "Anti-racism")
-)
+    mutate(add_normalized(df, bat_soup), Terms = "Bat soup"))
 ```
 
 ## Pivot 
@@ -139,11 +136,8 @@ twitter <- twitter %>%
                 values_from = rescaled,
                 values_fill = 0)
 
-twitter$Index <- (twitter$`Chinese virus` +
-  twitter$`Kung flu` + twitter$`Wuhan virus`)/3
-
 twitter <- twitter %>%
-  pivot_longer(matches("virus|flu|Index"),
+  pivot_longer(matches("virus|flu|bat|Asian"),
                names_to = "Terms", 
                values_to = "rescaled")
 ```
@@ -165,7 +159,7 @@ twitter_plot <- twitter %>%
         facet_wrap(~Terms)
 
 twitter_plot 
-ggsave(here("outputs", "desc_plot.png"), height = 10, width = 10)
+ggsave(here("outputs", "desc_plot.png"))
 ```
 
 # Export 
