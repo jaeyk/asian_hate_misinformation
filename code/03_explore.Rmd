@@ -97,7 +97,9 @@ df <- df %>%
            kung_flu = as.numeric(str_detect(full_text, "kung flu|kungflu")), 
            wuhan_virus = as.numeric(str_detect(full_text, "wuhan virus|wuhanvirus")),
            bat_soup = 
-as.numeric(str_detect(full_text, "bat soup")))
+as.numeric(str_detect(full_text, "bat soup")),
+           racism = 
+as.numeric(str_detect(full_text, "calling corona|calling covid")))
 ```
 
 ### Date
@@ -124,7 +126,9 @@ twitter <- bind_rows(
     mutate(add_normalized(df, chinese_virus), Terms = "Chinese virus"),
     mutate(add_normalized(df, kung_flu), Terms = "Kung flu"),
     mutate(add_normalized(df, wuhan_virus), Terms = "Wuhan virus"),
-    mutate(add_normalized(df, bat_soup), Terms = "Bat soup"))
+    mutate(add_normalized(df, bat_soup), Terms = "Bat soup"),
+    mutate(add_normalized(df,
+racism), Terms = "Calling COVID"))
 ```
 
 ## Pivot 
@@ -137,7 +141,7 @@ twitter <- twitter %>%
                 values_fill = 0)
 
 twitter <- twitter %>%
-  pivot_longer(matches("virus|flu|bat|Asian"),
+  pivot_longer(matches("virus|flu|bat|calling"),
                names_to = "Terms", 
                values_to = "rescaled")
 ```
@@ -156,7 +160,7 @@ twitter_plot <- twitter %>%
         geom_vline(xintercept = as.Date(c("2020-03-16")),
                linetype = "dashed",
                color = "blue") +
-        facet_wrap(~Terms)
+        facet_grid(~Terms) 
 
 twitter_plot 
 ggsave(here("outputs", "desc_plot.png"))

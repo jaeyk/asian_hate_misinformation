@@ -86,3 +86,15 @@ nearest_neighbors <- function(df, token) {
     )(item1, dimension, value) %>%
     select(-item2)
 }
+
+# The following code comes from https://stackoverflow.com/questions/53501341/make-udpipe-annotate-faster
+
+# returns a data.table
+annotate_splits <- function(text) {
+  
+  en_model <- udpipe_load_model(here("code", "english-ewt-ud-2.5-191206.udpipe"))
+  
+  x <- as.data.table(udpipe_annotate(object = en_model, x = text))
+  return(x)
+  
+}
