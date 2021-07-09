@@ -163,7 +163,7 @@ twitter_plot <- twitter %>%
         facet_grid(~Terms) 
 
 twitter_plot 
-ggsave(here("outputs", "desc_plot.png"))
+ggsave(here("outputs", "desc_plot.png"), width = 10)
 ```
 
 # Export 

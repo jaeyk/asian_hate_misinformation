@@ -1,0 +1,140 @@
+---
+title: "Classification"
+author: "Jae Yeon Kim"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Import packages and files 
+
+## Packages
+
+```{r}
+pacman::p_load(data.table, # fast data manipulation
+               tidyverse, # tidyverse 
+               ggpubr, # arranging ggplots   
+               ggthemes, # fancy ggplot themes
+               here, # reproducibility 
+               patchwork, # easy ggarrange
+               ggsci, # pubs 
+               ggrepel, # annotate ggplot   
+               glue, # string + object 
+               purrr, # functional programming 
+               udpipe,
+               tm,
+               tidytext,
+               future,
+               furrr)
+               
+# for publication-friendly theme 
+theme_set(theme_pubr())
+
+# Custom functions
+file.list <- glue("{here('functions')}/{ 
+     list.files(here('functions'))}")
+
+purrr::walk(file.list, source)
+```
+
+## Files 
+
+```{r eval = FALSE}
+df <- fread(here("processed_data", "text_ready.csv"))
+
+df <- df %>%
+  filter(wuhan_virus == 1 | chinese_virus == 1 |
+         kung_flu == 1)
+
+df <- subset(df, date >= as.Date(c("2020-03-16")))
+```
+
+# Inspection 
+
+## Add trump variable 
+
+```{r eval = FALSE}
+df <- df %>%
+  mutate(trump = if_else(str_detect(tolower(full_text), "trump"), "trump", "non-trump")) %>%
+  group_by(trump)
+```
+
+## Remove non-essential properties 
+
+```{r eval = FALSE}
+df$full_text <- tm::removePunctuation(df$full_text)
+df$full_text <- tm::removeNumbers(df$full_text)
+
+saveRDS(df, file = here("processed_data", "cleaned_text.Rdata"))
+```
+
+## Tagging 
+
+```{r eval = FALSE}
+cleaned_text <- readRDS(here("processed_data", "cleaned_text.Rdata"))
+
+#udpipe_download_model(language = "english")
+
+no_cores <- availableCores() - 1
+plan(multicore, workers = no_cores)
+
+corpus_splitted <- split(cleaned_text$full_text, seq(1, nrow(df), by = 100))
+
+annotation <- furrr::future_map_dfr(corpus_splitted, annotate_splits, .options = furrr_options(seed = T))
+
+saveRDS(annotation, file = here("processed_data", "annotation.Rdata"))
+```
+
+## Counting 
+
+```{r}
+x <- readRDS(here("processed_data", "annotation.Rdata")) %>% data.frame()
+
+stats <- subset(x, upos %in% c("VERB")) 
+stats <- txt_freq(stats$lemma)
+stats$key <- factor(stats$key, levels = rev(stats$key))
+
+data(stop_words)
+
+stats <- stats %>%
+  anti_join(stop_words, by = c("key" = "word"))
+
+stats %>%
+  top_n(10, freq) %>%
+  ggplot(aes(x = key, y = freq)) +
+    geom_col() +
+    coord_flip() +
+    labs(title = "Top 10 most occuring verbs",
+         x = "",
+         y = "")
+
+ggsave(here("outputs", "verb_top10.png"))
+```
+
+```{r}
+x$phrase_tag <- as_phrasemachine(x$upos, type = "upos")
+
+stats2 <- keywords_phrases(x = x$phrase_tag, term = tolower(x$lemma), 
+                          pattern = "(A|N)*N(P+D*(A|N)*N)*", 
+                          is_regex = TRUE, detailed = FALSE)
+
+stats2 <- subset(stats2, ngram > 1 & freq > 3)
+
+stats2$key <- factor(stats2$keyword, levels = rev(stats2$keyword))
+
+stats2 %>%
+  filter(str_detect(key, "call"))
+```
+
+## Reading 
+
+```{r}
+asian_text <- df %>%
+  filter(str_detect(full_text, "asian"))
+
+asian_text$full_text
+```
+
+```{r}
+knitr::purl(here("code", "05_inspection.Rmd"),
+            here("code", "05_inspection.r"))
+```
