@@ -1,5 +1,5 @@
 
-# Anti-Asian hate crimate, COVID-19, and Trump
+# How Political Elites Changed Anti-Asian Hate Speech During the COVID-19 Pandemic
 
 Please feel free to create issues in this Git repository or send an email to [jaeyeonkim@berkeley.edu](mailto:jaeyeonkim@berkeley.edu).
 
