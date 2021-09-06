@@ -24,8 +24,8 @@ pacman::p_load(data.table, # fast data manipulation
                ggsci, # pubs 
                ggrepel, # annotate ggplot   
                glue, # string + object 
-               purrr) # functional programming 
-
+               purrr, # functional programming 
+               kableExtra)
 devtools::install_github("jaeyk/tidytweetjson")
 library(tidytweetjson)
 
@@ -41,129 +41,44 @@ purrr::walk(file.list, source)
 
 ## Files 
 
-- 5,050,042 obs 
+- 5,109,492 obs 
 
 ```{r eval = FALSE}
 parsed <- readRDS(here("processed_data", "parsed.rds"))
+
+parsed <- parsed %>%
+  select("id", "created_at", "full_text")
+
+names(parsed)[1] <- "tweet_id"
+parsed$tweet_id <- as.numeric(parsed$tweet_id)
+
+df <- fread(here("processed_data", "filtered_all.tsv"))
+
+nrow(df) # 6548323
 ```
 
-# Wrangle 
+# Merge and wrangle 
 
-## Filter
+```{r}
+# Change the data type to merge
+df$tweet_id <- as.numeric(df$tweet_id)
 
-- Filtered if location field is empty or NA: 3,734,756 obs (73% of the original data)
-- I did not use country_code field as it is mostly filled with NAs (97%).
+# Merge (parsed is smaller than the original df)
+df <- left_join(parsed, df)
 
-```{r eval = FALSE}
-sum(is.na(parsed$country_code))/nrow(parsed)
-filtered <- parsed %>%
-    filter(!(location == "" | is.na(location)))
+nrow(df) # 5109492
 ```
 
-## Select 
+```{r}
+# Add date variable 
+df$date <- as.POSIXct(df[["created_at"]], tz = "UTC", format = "%a %b %d %H:%M:%S %z %Y") %>% word(1)
 
-```{r eval = FALSE}
-# Select columns 
-selected <- filtered %>% 
-    select(created_at, full_text, location) 
-```
-
-## Mutate 
-
-### Location 
-
-- 37% of the Tweets (1,394,468) were created by the users located in the US.
-
-```{r eval = FALSE}
-# Add two columns
-# US: located in the US identified by the names of the US states and cities 
-# non_US: located not in the US identified by the names of the non-US countries 
-df <- add_US_location(selected)
-df <- subset(df, US_location == 1)
-# nrow(df)/nrow(selected)
-```
-
-### Text 
-
-```{r eval = FALSE}
-# Create new columns 
 df <- df %>%
-    mutate(full_text = str_to_lower(full_text),
-           wuhan = as.numeric(str_detect(full_text, "wuhan")),
-           asian = as.numeric(str_detect(full_text, "asia|asian")),
-           chinese = as.numeric(str_detect(full_text, "china|chinese")),
-           trump = as.numeric(str_detect(full_text, "trump")),
-           chinese_virus = as.numeric(str_detect(full_text, "chinese flu|chineseflu|chinese virus|chinesevirus")),
-           kung_flu = as.numeric(str_detect(full_text, "kung flu|kungflu")), 
-           wuhan_virus = as.numeric(str_detect(full_text, "wuhan virus|wuhanvirus")),
-           bat_soup = 
-as.numeric(str_detect(full_text, "bat soup")),
-           racism = 
-as.numeric(str_detect(full_text, "calling corona|calling covid")))
-```
+  mutate(trump_speech = if_else(date >= as.Date(c("2020-03-16")), 1, 0)) %>%
+  select(-c("created_at"))
 
-### Date
-
-```{r eval = FALSE}
-df <- tidytweetjson::add_date(df)
-#df[1:10,] %>% select(created_at, date)
-
-fwrite(df, here("processed_data", "US_tweets.csv"))
-```
-
-```{r}
-df <- fread(here("processed_data", "US_tweets.csv"))
-
-df <- data.frame(df)
-```
-
-# Explore 
-
-## Group by 
-
-```{r}
-twitter <- bind_rows(
-    mutate(add_normalized(df, chinese_virus), Terms = "Chinese virus"),
-    mutate(add_normalized(df, kung_flu), Terms = "Kung flu"),
-    mutate(add_normalized(df, wuhan_virus), Terms = "Wuhan virus"),
-    mutate(add_normalized(df, bat_soup), Terms = "Bat soup"),
-    mutate(add_normalized(df,
-racism), Terms = "Calling COVID"))
-```
-
-## Pivot 
-
-```{r}
-twitter <- twitter %>%
-    filter(Terms != "Anti-racism") %>%
-    pivot_wider(names_from =  Terms,
-                values_from = rescaled,
-                values_fill = 0)
-
-twitter <- twitter %>%
-  pivot_longer(matches("virus|flu|bat|calling"),
-               names_to = "Terms", 
-               values_to = "rescaled")
-```
-
-```{r}
-twitter_plot <- twitter %>%
-    ggplot(aes(x = as.Date(date), y = rescaled)) +
-        geom_line(alpha = 0.3) +
-        geom_point(shape = 21, 
-                   color = "black", 
-                   fill = "#69b3a2") +
-        labs(x = "Date",
-             y = "Count",
-             title = "Tweets on COVID-19 (in the US)",
-             subtitle = "Normalized to a 0-100 range") +
-        geom_vline(xintercept = as.Date(c("2020-03-16")),
-               linetype = "dashed",
-               color = "blue") +
-        facet_grid(~Terms) 
-
-twitter_plot 
-ggsave(here("outputs", "desc_plot.png"), width = 10)
+df_usa <- df %>%
+  filter(str_detect(country, "us|US"))
 ```
 
 # Export 

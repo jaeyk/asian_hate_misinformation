@@ -9,6 +9,9 @@ pacman::p_load(data.table, # for fast data manipulation
                purrr, # for functional programming
                tictoc) # for performance test 
 
+devtools::install_github("jaeyk/tidytweetjson",
+                         dependencies = TRUE)
+
 library(tidytweetjson)
 
 # Parse all 
@@ -16,10 +19,9 @@ library(tidytweetjson)
 future::plan("multiprocess")
 
 tictoc::tic()
-df <- jsonl_to_df_all(dir_path = "/home/jae/hateasiancovid/processed_data/splitted_data")
+df <- jsonl_to_df_all(dir_path = here("processed_data", "splitted_data"), simplify = TRUE)
 tictoc::toc()
 
-# Save it. Note that `Compress = FALSE` makes saving fast 
+# Save it.
 
-saveRDS(df, "/home/jae/hateasiancovid/processed_data/parsed.rds", 
-        compress = FALSE)
+saveRDS(df, here("processed_data", "parsed.rds"))

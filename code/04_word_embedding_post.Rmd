@@ -109,24 +109,6 @@ tidy_word_vectors <- tidy_pmi %>%
 saveRDS(tidy_word_vectors, file = here("processed_data", "tidy_word_vectors_post.Rdata"))
 ```
 
-## Inspecting related words
-
-```{r}
-# Application 
-
-tidy_word_vectors <- readRDS(file = here("processed_data", "tidy_word_vectors_post.Rdata"))
-
-tidy_word_vectors %>%
-  nearest_neighbors("chinese_virus") %>%
-  filter(item1 != "chinese_virus") %>%
-  filter(!str_detect(item1, "http")) %>%
-  top_n(10, abs(value)) %>%
-  mutate(value = round(value,2)) %>%
-  rename(word = item1,
-         similarity = value) %>%
-  kableExtra::kable()
-```
-
 ```{r eval = FALSE}
 knitr::purl("04_word_embedding_post.Rmd",
             "04_word_embedding_post.r")

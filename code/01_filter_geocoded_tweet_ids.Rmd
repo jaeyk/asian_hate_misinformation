@@ -1,0 +1,47 @@
+---
+title: "01_sample_data"
+author: "Jae Yeon Kim"
+date: "6/29/2020"
+output: html_document
+---
+
+# Import libs and files 
+
+## Libs
+
+```{r}
+
+pacman::p_load(data.table, # for fast data import 
+               tidyverse, # for tidyverse 
+               here) # for reproducibility 
+
+```
+
+## Files 
+
+```{r}
+
+classified <- data.table::fread(here("raw_data", "covid-hate", "data", "classified", "all_classifications.csv"))
+
+geocoded <- data.table::fread(here("raw_data", "covid-hate", "data", "geolocated", "geolocations.csv"))
+```
+
+# Wrangle data 
+
+```{r}
+names(classified)[1] <- "tweet_id"
+names(geocoded)[1] <- "tweet_id"
+
+df <- semi_join(classified, geocoded)
+df$country <- geocoded$Country
+```
+
+# Export data 
+
+```{r}
+
+fwrite(df, here("processed_data", "filtered_all.tsv"))
+```
+
+
+

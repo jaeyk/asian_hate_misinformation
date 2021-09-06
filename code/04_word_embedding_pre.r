@@ -1,4 +1,4 @@
-## -------------------------------------------
+## --------------------------------
 # Import pkgs
 pacman::p_load(
   data.table,
@@ -29,7 +29,7 @@ file.list <- glue("{here('functions')}/{
 purrr::walk(file.list, source)
 
 
-## -------------------------------------------
+## --------------------------------
 df <- fread(here("processed_data", "text_ready.csv"))
 
 df <- df %>%
@@ -39,7 +39,7 @@ df <- df %>%
 df <- subset(df, date < as.Date(c("2020-03-16")))
 
 
-## -------------------------------------------
+## --------------------------------
 # Call stop words dictionary 
 data("stop_words")
 
@@ -61,7 +61,7 @@ nested_df <- filtered_df %>%
   nest(words = c(word))
 
 
-## -------------------------------------------
+## --------------------------------
 plan(multisession)  ## for parallel processing
 
 unnested_df <- nested_df %>%
@@ -69,7 +69,7 @@ unnested_df <- nested_df %>%
   unnest(words) 
 
 
-## -------------------------------------------
+## --------------------------------
 tidy_pmi <- unnested_df %>%
   unite(window_id, date, window_id) %>%
   pairwise_pmi(word, window_id)
@@ -77,7 +77,7 @@ tidy_pmi <- unnested_df %>%
 save(unnested_df, tidy_pmi, file = here("processed_data", "tidy_pmi_pre.Rdata"))
 
 
-## -------------------------------------------
+## --------------------------------
 # 100 dimensions using Singular Value Composition
 tidy_word_vectors <- tidy_pmi %>%
   widely_svd(
@@ -88,23 +88,7 @@ tidy_word_vectors <- tidy_pmi %>%
 saveRDS(tidy_word_vectors, file = here("processed_data", "tidy_word_vectors_pre.Rdata"))
 
 
-## ----eval = FALSE---------------------------
-## # Application
-## 
-## tidy_word_vectors <- readRDS(file = here("processed_data", "tidy_word_vectors_pre.Rdata"))
-## 
-## tidy_word_vectors %>%
-##   nearest_neighbors("chinese_virus") %>%
-##   filter(item1 != "chinese_virus") %>%
-##   filter(!str_detect(item1, "http")) %>%
-##   top_n(10, abs(value)) %>%
-##   mutate(value = round(value,2)) %>%
-##   rename(word = item1,
-##          similarity = value) %>%
-##   kableExtra::kable()
-
-
-## ----eval = FALSE---------------------------
+## ----eval = FALSE----------------
 ## knitr::purl("04_word_embedding_pre.Rmd",
 ##             "04_word_embedding_pre.r")
 

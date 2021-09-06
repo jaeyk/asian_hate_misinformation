@@ -132,6 +132,8 @@ asian_text <- df %>%
   filter(str_detect(full_text, "asian"))
 
 asian_text$full_text
+
+nrow(asian_text)
 ```
 
 ```{r}
