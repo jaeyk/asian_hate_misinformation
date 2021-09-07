@@ -1,0 +1,100 @@
+---
+title: "03_preprocess_data"
+author: "Jae Yeon Kim"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+# Import packages and files 
+
+## Packages
+
+```{r}
+pacman::p_load(data.table, # fast data manipulation
+               tidyverse, # tidyverse 
+               ggpubr, # arranging ggplots   
+               ggthemes, # fancy ggplot themes
+               here, # reproducibility 
+               maps, # US city data
+               openintro, # revert state name abbreviations to their original forms 
+               stringr, # easy regular expression
+               lubridate, # easy time var manipulation
+               forcats, # reverse factor order 
+               patchwork, # easy ggarrange
+               ggsci, # pubs 
+               ggrepel, # annotate ggplot   
+               glue, # string + object 
+               purrr, # functional programming 
+               kableExtra,
+               textclean,
+               stopwords)
+
+devtools::install_github("jaeyk/tidytweetjson")
+library(tidytweetjson)
+
+# for publication-friendly theme 
+theme_set(theme_pubr())
+
+# Custom functions
+file.list <- glue("{here('functions')}/{ 
+     list.files(here('functions'))}")
+
+purrr::walk(file.list, source)
+```
+
+## Files 
+
+- 5,109,492 obs 
+
+```{r eval = FALSE}
+parsed <- readRDS(here("processed_data", "parsed.rds"))
+
+parsed <- parsed %>%
+  select("id", "created_at", "full_text")
+
+names(parsed)[1] <- "tweet_id"
+parsed$tweet_id <- as.numeric(parsed$tweet_id)
+
+df <- fread(here("processed_data", "filtered_all.tsv"))
+
+nrow(df) # 6548323
+```
+
+# Merge and wrangle 
+
+```{r}
+# Change the data type to merge
+df$tweet_id <- as.numeric(df$tweet_id)
+
+# Merge (parsed is smaller than the original df)
+df <- left_join(parsed, df)
+
+nrow(df) # 5109492
+```
+
+```{r}
+# Add date variable 
+df$date <- as.POSIXct(df[["created_at"]], tz = "UTC", format = "%a %b %d %H:%M:%S %z %Y") %>% word(1)
+
+df <- df %>%
+  mutate(trump_speech = if_else(date >= as.Date(c("2020-03-16")), 1, 0)) %>%
+  select(-c("created_at"))
+
+# Preprocess text 
+df <- clean_text(df)
+
+df_usa <- df %>%
+  filter(str_detect(country, "us|US"))
+
+# Mutate columns 
+df <- df %>% 
+  mutate(chinese_virus = as.numeric(str_detect(full_text, "chinese flu|chineseflu|chinese virus|chinesevirus")),
+         kung_flu = as.numeric(str_detect(full_text, "kung flu|kungflu")), 
+         wuhan_virus = as.numeric(str_detect(full_text, "wuhan virus|wuhanvirus")))
+```
+
+# Export 
+
+```{r}
+save(df, df_usa, file = here("processed_data", "df_ready.Rdata"))
+```
