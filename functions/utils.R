@@ -102,7 +102,7 @@ annotate_splits <- function(text) {
 clean_text <- function(df) {
 
   # Remove stopwords 
-  df$clean_text <- tm::removeWords(df$full_text, words = stopwords::stopwords("en", source = "nltk")) 
+  df$clean_text <- tm::removeWords(df$full_text, words = stopwords::stopwords("en", source = "snowball")) 
   
   df$clean_text <- df$clean_text %>%
     # Remove all non-alpha characters 
@@ -120,13 +120,13 @@ clean_text <- function(df) {
 con2nplot <- function(corpus, keyword, local_glove, local_transform) { 
   
   # Latino context 
-  contextL <- get_context(x = corpus$value[corpus$latino == 1], target = keyword)
+  contextPre <- get_context(x = corpus$clean_text[corpus$Label == 1], target = keyword)
   
   # Asian context 
-  contextA <- get_context(x = corpus$value[corpus$latino == 0], target = keyword)
+  contextPost <- get_context(x = corpus$clean_text[corpus$Label == 0], target = keyword)
   
   # bind contexts 
-  contexts_corpus <- rbind(cbind(contextL, group = "Latino"), cbind(contextA, group = "Asian"))
+  contexts_corpus <- rbind(cbind(contextPre, group = "Hate speech"), cbind(contextPost, group = "Counterspech"))
   
   # embed each instance using a la carte
   contexts_vectors <- embed_target(
@@ -137,15 +137,15 @@ con2nplot <- function(corpus, keyword, local_glove, local_transform) {
     verbose = TRUE)
   
   # get local vocab
-  local_vocab <- get_local_vocab(c(contextL$context, contextA$context), pre_trained = local_glove)
+  local_vocab <- get_local_vocab(c(contextPre$context, contextPost$context), pre_trained = local_glove)
   
   # exclude the keyword 
   local_vocab <- setdiff(local_vocab, c(keyword))
   
   set.seed(1234)
   contrast_target <- contrast_nns(
-    context1 = contextL$context, 
-    context2 = contextA$context, 
+    context1 = contextPre$context, 
+    context2 = contextPost$context, 
     pre_trained = local_glove, 
     transform_matrix = local_transform, 
     transform = TRUE, 
@@ -160,22 +160,22 @@ con2nplot <- function(corpus, keyword, local_glove, local_transform) {
   N <- 30
   
   # first get each party's nearest neighbors (output by the contrast_nns function)
-  nnsL <- contrast_target$nns1
-  nnsA <- contrast_target$nns2
+  nnsPre <- contrast_target$nns1
+  nnsPost <- contrast_target$nns2
   
   # subset to the union of top N nearest neighbors for each party
-  top_nns <- union(nnsL$Term[1:N], nnsA$Term[1:N])
+  top_nns <- union(nnsPre$Term[1:N], nnsPost$Term[1:N])
   
   # identify which of these are shared
-  shared_nns <- intersect(nnsL$Term[1:N], nnsA$Term[1:N])
+  shared_nns <- intersect(nnsPre$Term[1:N], nnsPost$Term[1:N])
   
   # subset nns_ratio (output by contrast_nns) to the union of the top nearest
   # neighbors
   nns_ratio <- contrast_target$nns_ratio %>% 
     dplyr::filter(Term %in% top_nns) %>% 
     mutate(group = case_when(
-      Term %in% nnsL$Term[1:N] & !(Term %in% nnsA$Term[1:N]) ~ "Latino", 
-      !(Term %in% nnsL$Term[1:N]) & Term %in% nnsA$Term[1:N] ~ "Asian", 
+      Term %in% nnsPre$Term[1:N] & !(Term %in% nnsPost$Term[1:N]) ~ "Hate speech", 
+      !(Term %in% nnsPre$Term[1:N]) & Term %in% nnsPost$Term[1:N] ~ "Counterpspeech", 
       Term %in% shared_nns ~ "Shared"), 
       significant = if_else(Empirical_Pvalue < 0.01, "yes", "no"))
   
@@ -200,9 +200,9 @@ con2nplot <- function(corpus, keyword, local_glove, local_transform) {
       vjust = 0.25, 
       size = 5) +
     scale_color_brewer(palette = "Dark2") + 
-    xlim(-2, 5) + 
+    xlim(-1.5, 5) + 
     ylim(0, 60) + 
-    labs(y = "", x = "cosine similarity ratio \n (Latino/Asian)",
+    labs(y = "", x = "cosine similarity ratio \n (Hate speech/Counterspeech)",
          col = "Category", shape = "Category") + 
     theme(legend.position = "bottom")
 }
@@ -213,7 +213,7 @@ df2cm <- function(corpus, count_min = 5, window_size = 6) {
   ############################### Create VOCAB ###############################
   
   # Create iterator over tokens
-  tokens <- space_tokenizer(corpus$value)
+  tokens <- space_tokenizer(corpus$clean_text)
   
   # Create vocabulary. Terms will be unigrams (simple words).
   it <- itoken(tokens, progressbar = TRUE)
@@ -224,7 +224,7 @@ df2cm <- function(corpus, count_min = 5, window_size = 6) {
   vocab_pruned <- prune_vocabulary(vocab, term_count_min = count_min)
   
   # use quanteda's fcm to create an fcm matrix
-  fcm_cr <- tokens(corpus$value) %>% 
+  fcm_cr <- tokens(corpus$clean_text) %>% 
     quanteda::fcm(context = "window", count = "frequency", 
                   window = window_size, weights = rep(1, window_size), tri = FALSE)
   
@@ -234,12 +234,12 @@ df2cm <- function(corpus, count_min = 5, window_size = 6) {
   return(fcm_cr)
 }
 
-df2ltm <- function(corpus, fcm_cr, local_glove, count_min = 5, window_size = 6) {
+df2ltm <- function(corpus, local_glove, count_min = 5, window_size = 6) {
   
   ############################### Create VOCAB ###############################
   
   # Create iterator over tokens
-  tokens <- space_tokenizer(corpus$value)
+  tokens <- space_tokenizer(corpus$clean_text)
   
   # Create vocabulary. Terms will be unigrams (simple words).
   it <- itoken(tokens, progressbar = TRUE)
@@ -249,39 +249,18 @@ df2ltm <- function(corpus, fcm_cr, local_glove, count_min = 5, window_size = 6) 
   # Filter words
   vocab_pruned <- prune_vocabulary(vocab, term_count_min = count_min)
   
+  # use quanteda's fcm to create an fcm matrix
+  fcm_cr <- tokens(corpus$clean_text) %>% 
+    quanteda::fcm(context = "window", count = "frequency", 
+                  window = window_size, weights = rep(1, window_size), tri = FALSE)
+  
+  # subset fcm to the vocabulary included in the embeddings
+  fcm_cr <- fcm_select(fcm_cr, pattern = vocab_pruned$term, selection = "keep")
+  
   local_transform <- compute_transform(context_fcm = fcm_cr, pre_trained = local_glove, 
                                        vocab = vocab_pruned, weighting = 1000)
   
   return(local_transform)
-}
-
-df2pmi <- function(df) {
-  
-  tokenized_df <- df %>%
-    # Tokenize 
-    unnest_tokens("word", value)
-  
-  tidy_df <- tokenized_df %>%
-    # Add count 
-    add_count(word) %>%
-    # Drop the variable 
-    select(-n)
-  
-  nested_df <- tidy_df %>%
-    nest(words = c(word))
-  
-  plan(multisession)  ## for parallel processing
-  set.seed(1234)
-  
-  unnested_df <- nested_df %>%
-    mutate(words = future_map(words, slide_windows, 4L)) %>%
-    unnest(words) 
-  
-  tidy_pmi <- unnested_df %>%
-    unite(window_id, date, window_id) %>%
-    pairwise_pmi(word, window_id)
-  
-  return(tidy_pmi)
 }
 
 df2vec <- function(corpus, count_min = 5, window_size = 6, dims = 50) {
@@ -289,7 +268,7 @@ df2vec <- function(corpus, count_min = 5, window_size = 6, dims = 50) {
   ############################### Create VOCAB ###############################
   
   # Create iterator over tokens
-  tokens <- space_tokenizer(corpus$value)
+  tokens <- space_tokenizer(corpus$clean_text)
   
   # Create vocabulary. Terms will be unigrams (simple words).
   it <- itoken(tokens, progressbar = TRUE)
@@ -324,9 +303,9 @@ df2vec <- function(corpus, count_min = 5, window_size = 6, dims = 50) {
   return(word_vectors)
 }
 
-get_bt_terms <- function(group_n, period_n, keyword, word_n) {
+get_bt_terms <- function(speech_n, label_n, keyword, word_n) {
   
-  contexts <- get_context(x = subset(corpus, latino == group_n & pre == period_n)$value, target = "discrimination", 
+  contexts <- get_context(x = subset(corpus, trump_speech == speech_n & Label == label_n)$clean_text, target = keyword, 
                           window = 6, valuetype = "fixed", case_insensitive = TRUE, hard_cut = FALSE, verbose = FALSE)
   
   local_vocab <- get_local_vocab(contexts$context, local_glove)
@@ -344,38 +323,37 @@ get_bt_terms <- function(group_n, period_n, keyword, word_n) {
     N = word_n, 
     norm = "l2")
   
-  if (group_n == 1 & period_n == 1) {
+  if (speech_n == 1 & label_n == 1) {
     
     out <- out %>% 
-      mutate(group = "Latino",
-             period = "Pre")
+      mutate(trump_speech = "Post",
+             label = "Hate")
     
   }
   
-  if (group_n == 1 & period_n == 0) {
+  if (speech_n == 1 & label_n == 0) {
     
     out <- out %>% 
-      mutate(group = "Latino",
-             period = "Post")
+      mutate(trump_speech = "Post",
+             label = "Counterhate")
     
   }
   
-  if (group_n == 0 & period_n == 1) {
+  if (speech_n == 0 & label_n == 1) {
     
     out <- out %>% 
-      mutate(group = "Asian",
-             period = "Pre")
+      mutate(trump_speech = "Pre",
+             label = "Hate")
     
   }
   
-  if (group_n == 0 & period_n == 0) {
+  if (speech_n == 0 & label_n == 0) {
     
     out <- out %>% 
-      mutate(group = "Asian",
-             period = "Post")
+      mutate(trump_speech = "Pre",
+             label = "Counterhate")
     
   }
-  
   
   return(out)
 }
@@ -383,7 +361,7 @@ get_bt_terms <- function(group_n, period_n, keyword, word_n) {
 get_candidates <- function(corpus, keyword, local_glove, local_transform) {
   
   # get contexts 
-  contexts_corpus <- get_context(x = corpus$value, target = keyword)
+  contexts_corpus <- get_context(x = corpus$clean_text, target = keyword)
   
   # embed each instance using a la carte
   contexts_vectors <- embed_target(
@@ -402,7 +380,7 @@ get_candidates <- function(corpus, keyword, local_glove, local_transform) {
 
 get_contexs <- function(group_n, period_n, key_word) {
   
-  out <- get_context(x = subset(corpus, latino == group_n & pre == period_n)$value, target = key_word, 
+  out <- get_context(x = subset(corpus, latino == group_n & pre == period_n)$clean_text, target = key_word, 
                      window = 6, valuetype = "fixed", case_insensitive = TRUE, hard_cut = FALSE, verbose = FALSE)
   
   return(out)
@@ -410,7 +388,7 @@ get_contexs <- function(group_n, period_n, key_word) {
 
 get_context_con <- function(group_n, period, period_n, key_word) {
   
-  out <- get_context(x = subset(corpus, latino == group_n & get(period) == period_n)$value, 
+  out <- get_context(x = subset(corpus, latino == group_n & get(period) == period_n)$clean_text, 
                      target = key_word,
                      window = 6, 
                      valuetype = "fixed",
@@ -425,10 +403,10 @@ get_context_con <- function(group_n, period, period_n, key_word) {
 get_context_vectors <- function(corpus, keyword, local_glove, local_transform) {
   
   # Latino context 
-  contextL <- get_context(x = corpus$value[corpus$latino == 1], target = keyword)
+  contextL <- get_context(x = corpus$clean_text[corpus$latino == 1], target = keyword)
   
   # Asian context 
-  contextA <- get_context(x = corpus$value[corpus$latino == 0], target = keyword)
+  contextA <- get_context(x = corpus$clean_text[corpus$latino == 0], target = keyword)
   
   # bind contexts 
   contexts_corpus <- rbind(cbind(contextL, group = "Latino"), cbind(contextA, group = "Asian"))
@@ -448,7 +426,7 @@ get_word_count <- function(data, stem = TRUE) {
   
   tidy_df <- data %>%
     # Tokenize 
-    unnest_tokens("word", value) %>%
+    unnest_tokens("word", clean_text) %>%
     # Remove stop words 
     anti_join(get_stopwords(), by = "word") 
   
@@ -492,7 +470,7 @@ get_word_count <- function(data, stem = TRUE) {
 
 key2convec <- function(corpus, keyword) {
   
-  contexts <- get_context(x = corpus$value, target = keyword, window = 6, valuetype = "fixed", case_insensitive = TRUE, hard_cut = FALSE, verbose = FALSE)
+  contexts <- get_context(x = corpus$clean_text, target = keyword, window = 6, valuetype = "fixed", case_insensitive = TRUE, hard_cut = FALSE, verbose = FALSE)
   
   contexts_vectors <- embed_target(context = contexts$context, pre_trained = local_glove, transform_matrix = local_transform, transform = TRUE, aggregate = TRUE, verbose = TRUE)
   
@@ -504,10 +482,10 @@ key2sim <- function(vectors, key_word, n = 30) {
   out <- vectors %>%
     nearest_neighbors(key_word) %>%
     filter(item1 != key_word) %>%
-    top_n(n, abs(value)) %>%
-    mutate(value = round(value,2)) %>%
+    top_n(n, abs(clean_text)) %>%
+    mutate(clean_text = round(clean_text,2)) %>%
     rename(word = item1,
-           similarity = value) %>%
+           similarity = clean_text) %>%
     mutate(keyword = key_word)
   
   return(out)
@@ -588,22 +566,8 @@ nearest_neighbors <- function(df, token) {
         matrix(res, ncol = 1, dimnames = list(x = names(res)))
       },
       sort = TRUE
-    )(item1, dimension, value) %>%
+    )(item1, dimension, clean_text) %>%
     select(-item2)
-}
-
-parse_text <- function(file_path) {
-  
-  text <- readtext::readtext(file_path)
-  
-  meta <- text$doc_id %>% str_split("_")
-  
-  out <- data.frame(source = meta[[1]][1],
-                    year = meta[[1]][2],
-                    month = meta[[1]][3],
-                    value = text$text)
-  
-  return(out)
 }
 
 plot_embed <- function(embed) {
@@ -647,66 +611,6 @@ plot_track_keyword <- function(tf_idf, keyword) {
   
 }
 
-rec_stem <- function(tf_idf_stem, stem) {
-  
-  keyword <- tf_idf_stem$stem[str_detect(tf_idf_stem$stem, stem)] %>% unique()
-  
-  return(keyword) 
-}
-
-simseq2df<- function(simseq, i) {
-  
-  out <- mean(as.numeric(simseq[i,]), na.rm = TRUE)
-  
-  out <- data.frame("mean_sim" = out)
-  
-  return(out)
-}
-
-skipgrams_generator <- function(text, tokenizer, window_size, negative_samples) {
-  
-  tokenizer <- text_tokenizer(num_words =  10000) # maximum number of word to keep (based on frequency)
-  
-  gen <- texts_to_sequences_generator(tokenizer, sample(text))
-  
-  function() {
-    skip <- generator_next(gen) %>%
-      skipgrams(
-        vocabulary_size = tokenizer$num_words, 
-        window_size = window_size, 
-        negative_samples = 1
-      )
-    
-    x <- transpose(skip$couples) %>% map(. %>% unlist %>% as.matrix(ncol = 1))
-    y <- skip$labels %>% as.matrix(ncol = 1)
-    
-    list(x, y)
-  }
-  
-}
-
-slide_windows <- function(tbl, window_size) {
-  skipgrams <- slider::slide(
-    tbl, 
-    ~.x, 
-    .after = window_size - 1, 
-    .step = 1, 
-    .complete = TRUE
-  )
-  
-  safe_mutate <- safely(mutate)
-  
-  out <- map2(skipgrams,
-              1:length(skipgrams),
-              ~ safe_mutate(.x, window_id = .y))
-  
-  out %>%
-    transpose() %>%
-    pluck("result") %>%
-    compact() %>%
-    bind_rows()
-}
-
 terms2plot <- function(df1, df2, keyword, year) {
   
   bind_rows(df1, df2) %>%
@@ -714,9 +618,9 @@ terms2plot <- function(df1, df2, keyword, year) {
     filter(n() > 1) %>%
     ggplot(aes(x = fct_reorder(Term, Estimate), y = Estimate, 
                ymax = Estimate + 1.96*Std.Error,
-               ymin = Estimate - 1.96*Std.Error, col = group)) +
+               ymin = Estimate - 1.96*Std.Error, col = label)) +
     geom_pointrange() +
-    facet_wrap(~period) +
+    facet_wrap(~trump_speech) +
     coord_flip() +
     labs(subtitle = glue("Keyword: {keyword}"),
          title = glue("{year}"),
@@ -751,23 +655,3 @@ vec2sim <- function(word_vectors, keyword, n = 10) {
   
   return(out)
 }
-
-vec2sim3 <- function(word_vectors, exp, group1, group2, n = 10) {
-  
-  pattern <- word_vectors[exp, , drop = FALSE] - word_vectors[group1, , drop = FALSE] + word_vectors[group2, , drop = FALSE]
-  
-  cos_sim <- sim2(x = word_vectors, y = pattern, 
-                  method = "cosine", norm = "l2")
-  
-  out <- head(sort(cos_sim[,1], decreasing = TRUE), n + 1)[-1]
-  
-  out <- data.frame(out) %>%
-    add_rownames("word") %>%
-    rename(similarity = out) 
-  
-  out$exp <- exp
-  out$group1 <- group1
-  out$group2 <- group2
-  
-  return(out)
-} 
