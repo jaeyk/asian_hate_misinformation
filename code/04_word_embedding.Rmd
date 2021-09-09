@@ -21,6 +21,7 @@ pacman::p_load(
   quanteda, 
   here,
   tidytext, # text analysis 
+  textclean,
   ggthemes,
   text2vec, # word embedding 
   widyr,
@@ -50,15 +51,19 @@ source(here("functions", "utils.R"))
 load(here("processed_data", "df_ready.Rdata"))
 
 rm(df_usa)
+```
 
+```{r}
 corpus <- df %>%
   filter(country == "us" | country == "US") %>%
   filter(Label %in% c("Hate", "Counterhate")) %>%
   mutate(Label = if_else(Label == "Hate", 1, 0))
-
-corpus$date <- as.Date(corpus$date)
-corpus <- clean_text(corpus)
 rm(df)
+```
+
+```{r}
+corpus$date <- as.Date(corpus$date)
+corpus$clean_text <- clean_text(corpus$full_text)
 ```
 
 # Word embedding 
@@ -129,20 +134,26 @@ ggsave(here("outputs", "embed_reg.png"))
 
 ```{r}
 hate_post_bt <- get_bt_terms(1, 1, "chinese", 100)
-hate_pre_bt <- get_bt_terms(0, 1, "chinese", 400)
+hate_pre_bt <- get_bt_terms(0, 1, "chinese", 100)
 counterhate_post_bt <- get_bt_terms(1, 0, "chinese", 100)
-counterhate_pre_bt <- get_bt_terms(0, 0, "chinese", 400)
+counterhate_pre_bt <- get_bt_terms(0, 0, "chinese", 100)
 ```
 
 ```{r}
 terms2plot(hate_pre_bt, counterhate_pre_bt, "Chinese", "Pre-Trump Speech") + terms2plot(hate_post_bt, counterhate_post_bt, "Chinese", "Post-Trump Speech")
 
 ggsave(here("outputs", "bt_chinese.png"), width = 10, height = 10)
+
+terms2plot_sep(hate_pre_bt, counterhate_pre_bt, "Chinese", "Pre-Trump Speech") + terms2plot_sep(hate_post_bt, counterhate_post_bt, "Chinese", "Post-Trump Speech")
+
+ggsave(here("outputs", "bt_chinese_sep.png"), width = 10, height = 10)
 ```
 
 ### Contrasting 
 
 ```{r}
+set.seed(1234L)
+
 nns_hate <- (con2nplot(subset(corpus, trump_speech == 0), c("chinese"), local_glove, local_transform) + labs(title = "Pre-Trump speech", subtitle = "Keyword: Chinese")) +
 (con2nplot(subset(corpus, trump_speech == 1), c("chinese"), local_glove, local_transform) + labs(title = "Post-Trump speech", subtitle = "Keyword: Chinese"))
 

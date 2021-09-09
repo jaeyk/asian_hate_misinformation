@@ -46,74 +46,21 @@ get_word_count <- function(data, stem = TRUE) {
   
 }
 
-# The following code draws on this reference: https://smltar.com/embeddings.html
-
-slide_windows <- function(tbl, window_size) {
-  skipgrams <- slider::slide(
-    tbl, 
-    ~.x, 
-    .after = window_size - 1, 
-    .step = 1, 
-    .complete = TRUE
-  )
+clean_text <- function(full_text) {
   
-  safe_mutate <- safely(mutate)
-  
-  out <- map2(skipgrams,
-              1:length(skipgrams),
-              ~ safe_mutate(.x, window_id = .y))
-  
-  out %>%
-    transpose() %>%
-    pluck("result") %>%
-    compact() %>%
-    bind_rows()
-}
-
-# The following code draws on this reference: https://smltar.com/embeddings.html
-
-nearest_neighbors <- function(df, token) {
-  df %>%
-    widely(
-      ~ {
-        y <- .[rep(token, nrow(.)), ]
-        res <- rowSums(. * y) / 
-          (sqrt(rowSums(. ^ 2)) * sqrt(sum(.[token, ] ^ 2)))
-        
-        matrix(res, ncol = 1, dimnames = list(x = names(res)))
-      },
-      sort = TRUE
-    )(item1, dimension, value) %>%
-    select(-item2)
-}
-
-# The following code comes from https://stackoverflow.com/questions/53501341/make-udpipe-annotate-faster
-
-# returns a data.table
-annotate_splits <- function(text) {
-  
-  en_model <- udpipe_load_model(here("code", "english-ewt-ud-2.5-191206.udpipe"))
-  
-  x <- as.data.table(udpipe_annotate(object = en_model, x = text))
-  return(x)
-  
-}
-
-clean_text <- function(df) {
-
   # Remove stopwords 
-  df$clean_text <- tm::removeWords(df$full_text, words = stopwords::stopwords("en", source = "snowball")) 
-  
-  df$clean_text <- df$clean_text %>%
+  clean_text <- tm::removeWords(full_text, words = stopwords::stopwords(source = "smart")
+
+  clean_text <- clean_text %>%
     # Remove all non-alpha characters 
     gsub("[^[:alpha:]]", " ", .) %>%
     # remove 1-2 letter words
     str_replace_all("\\b\\w{1,2}\\b", "") %>% 
     # remove excess white space
     str_replace_all("^ +| +$|( ) +", "\\1") %>% 
-    tolower() # lowercase
-  
-  return(df)
+    tolower() %>% # lowercase
+    
+  return(clean_text)
   
 }
 
@@ -200,7 +147,7 @@ con2nplot <- function(corpus, keyword, local_glove, local_transform) {
       vjust = 0.25, 
       size = 5) +
     scale_color_brewer(palette = "Dark2") + 
-    xlim(-1.5, 5) + 
+    xlim(-3, 7) + 
     ylim(0, 60) + 
     labs(y = "", x = "cosine similarity ratio \n (Hate speech/Counterspeech)",
          col = "Category", shape = "Category") + 
@@ -400,28 +347,6 @@ get_context_con <- function(group_n, period, period_n, key_word) {
   
 }
 
-get_context_vectors <- function(corpus, keyword, local_glove, local_transform) {
-  
-  # Latino context 
-  contextL <- get_context(x = corpus$clean_text[corpus$latino == 1], target = keyword)
-  
-  # Asian context 
-  contextA <- get_context(x = corpus$clean_text[corpus$latino == 0], target = keyword)
-  
-  # bind contexts 
-  contexts_corpus <- rbind(cbind(contextL, group = "Latino"), cbind(contextA, group = "Asian"))
-  
-  # embed each instance using a la carte
-  contexts_vectors <- embed_target(
-    context = contexts_corpus$context, 
-    pre_trained = local_glove, 
-    transform_matrix = local_transform, 
-    transform = TRUE, 
-    aggregate = FALSE, 
-    verbose = TRUE)
-  
-}
-
 get_word_count <- function(data, stem = TRUE) {
   
   tidy_df <- data %>%
@@ -586,31 +511,6 @@ plot_embed <- function(embed) {
   return(out)
 }
 
-plot_track_keyword <- function(tf_idf, keyword) {
-  
-  base_count <- tf_idf %>%
-    group_by(group, date, word) %>%
-    summarise(sum_n = sum(n, na.rm = TRUE),
-              sum_tf_idf = sum(tf_idf, na.rm = TRUE)) %>%
-    filter(str_detect(word, keyword)) %>%
-    rename(count = sum_n,
-           tf_idf = sum_tf_idf) 
-  
-  base_count %>%
-    ggplot(aes(x = date, y = tf_idf, col = group)) +
-    geom_point() +
-    geom_line(alpha = 0.5) +
-    labs(title = glue("The count of words related to {keyword}"),
-         col = "Source",
-         x = "",
-         y = "") +
-    theme(legend.position = "bottom")
-  #       caption = glue("Sources: National Council of La Raza, 1972-1981 (Hispanic),
-  #                       Gidra, 1969-1974, Bridge, 1970-1982 (Asian)"))
-  
-  
-}
-
 terms2plot <- function(df1, df2, keyword, year) {
   
   bind_rows(df1, df2) %>%
@@ -631,27 +531,22 @@ terms2plot <- function(df1, df2, keyword, year) {
   
 }
 
-vec2sim <- function(word_vectors, keyword, n = 10) {
+terms2plot_sep <- function(df1, df2, keyword, year) {
   
-  pattern <- word_vectors[keyword, , drop = FALSE]
+  bind_rows(df1, df2) %>%
+    group_by(label) %>%
+    top_n(25, Estimate) %>%
+    ggplot(aes(x = fct_reorder(Term, Estimate), y = Estimate, 
+               ymax = Estimate + 1.96*Std.Error,
+               ymin = Estimate - 1.96*Std.Error, col = label)) +
+    geom_pointrange() +
+    facet_wrap(~trump_speech) +
+    coord_flip() +
+    labs(subtitle = glue("Keyword: {keyword}"),
+         title = glue("{year}"),
+         x = "",
+         y = "Bootstrapped estimate") +
+    theme(legend.position = "bottom") +
+    scale_color_brewer(palette = "Dark2")
   
-  cos_sim <- sim2(x = word_vectors, y = pattern, 
-                  method = "cosine", norm = "l2")
-  
-  out <- head(sort(cos_sim[,1], decreasing = TRUE), n + 1)[-1]
-  
-  out <- data.frame(out) %>%
-    add_rownames("word") %>%
-    rename(similarity = out) 
-  
-  out$keyword <- keyword
-  
-  out <- out %>% select(keyword, word, similarity) 
-  
-  out <- out %>%
-    rename(word1 = keyword, 
-           word2 = word, 
-           n = similarity)
-  
-  return(out)
 }

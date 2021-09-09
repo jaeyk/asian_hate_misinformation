@@ -81,7 +81,7 @@ df <- df %>%
   select(-c("created_at"))
 
 # Preprocess text 
-df <- clean_text(df)
+df$clean_text <- clean_text(df$full_text)
 
 df_usa <- df %>%
   filter(str_detect(country, "us|US"))
