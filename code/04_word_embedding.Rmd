@@ -54,6 +54,7 @@ rm(df_usa)
 ```
 
 ```{r}
+df$org_label <- df$Label 
 corpus <- df %>%
   filter(country == "us" | country == "US") %>%
   filter(Label %in% c("Hate", "Counterhate")) %>%
@@ -64,6 +65,24 @@ rm(df)
 ```{r}
 corpus$date <- as.Date(corpus$date)
 corpus$clean_text <- clean_text(corpus$full_text)
+
+test <- corpus %>%
+  group_by(trump_speech) %>%
+  mutate(hate = if_else(org_label == "Hate", 1, 0),
+         counterhate = if_else(org_label == "Counterhate", 1, 0)) 
+
+test %>%
+  summarize(hate_mean = mean(hate),
+            counterhate_mean = mean(counterhate))
+
+table(corpus$Label, 
+      corpus$trump_speech)
+
+t.test(subset(test$hate, test$trump_speech == 0),
+       subset(test$hate, test$trump_speech == 1)) 
+
+t.test(subset(test$counterhate, test$trump_speech == 0),
+       subset(test$counterhate, test$trump_speech == 1)) 
 ```
 
 # Word embedding 
@@ -163,22 +182,3 @@ ggsave(here("outputs", "nns_hate.png"),
        width = 15, height = 10
        )
 ```
-
-## Example texts 
-
-```{r}
-latino_pre_black_ex <- get_examples(1, 1, c("black", "african_american", "negro"), 20)
-asian_pre_black_ex <- get_examples(0, 1, c("black", "african_american", "negro"), 20)
-latino_post_black_ex <- get_examples(1, 0, c("black", "african_american", "negro"), 20)
-asian_post_black_ex <- get_examples(0, 0, c("black", "african_american", "negro"), 20)
-latino_pre_disc_ex <- get_examples(1, 1, "discrimination", 20)
-asian_pre_disc_ex <- get_examples(0, 1, "discrimination", 20)
-latino_post_disc_ex <- get_examples(1, 0, "discrimination", 20)
-asian_post_disc_ex <- get_examples(0, 0, "discrimination", 20)
-```
-
-```{r eval = FALSE}
-knitr::purl(input = here::here("code", "04_word_embedding.Rmd"),
-            output = here::here("code", "04_word_embedding.R"))
-```
- 

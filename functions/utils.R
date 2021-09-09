@@ -1,3 +1,17 @@
+## for bootstrapping 95% confidence intervals; Borrowed from Nick Camp's code from Jaren, Nick, and my shared project
+
+theta <- function(x, xdata, na.rm = T) {
+  mean(xdata[x], na.rm = na.rm)
+}
+
+ci.low <- function(x, na.rm = T) {
+  mean(x, na.rm = na.rm) - quantile(bootstrap::bootstrap(1:length(x), 1000, theta, x, na.rm = na.rm)$thetastar, .025, na.rm = na.rm)
+}
+
+ci.high <- function(x, na.rm = T) {
+  quantile(bootstrap::bootstrap(1:length(x), 1000, theta, x, na.rm = na.rm)$thetastar, .975, na.rm = na.rm) - mean(x, na.rm = na.rm)
+}
+
 # preprocessing 
 
 get_word_count <- function(data, stem = TRUE) {
@@ -48,19 +62,21 @@ get_word_count <- function(data, stem = TRUE) {
 
 clean_text <- function(full_text) {
   
-  # Remove stopwords 
-  clean_text <- tm::removeWords(full_text, words = stopwords::stopwords(source = "smart")
-
-  clean_text <- clean_text %>%
+  vec <- tolower(full_text) %>%
     # Remove all non-alpha characters 
     gsub("[^[:alpha:]]", " ", .) %>%
-    # remove 1-2 letter words
-    str_replace_all("\\b\\w{1,2}\\b", "") %>% 
+    # remove 1 letter words
+    str_replace_all("\\b\\w{1}\\b", "") %>% 
     # remove excess white space
-    str_replace_all("^ +| +$|( ) +", "\\1") %>% 
-    tolower() %>% # lowercase
+    str_replace_all("^ +| +$|( ) +", "\\1") 
+  
+  # Remove stopwords 
+  vec <- tm::removeWords(vec, words = c(stopwords(source = "snowball"))) %>%
+    replace_html() %>%
+    replace_url() %>%
+    replace_contraction() 
     
-  return(clean_text)
+  return(vec)
   
 }
 
@@ -147,7 +163,7 @@ con2nplot <- function(corpus, keyword, local_glove, local_transform) {
       vjust = 0.25, 
       size = 5) +
     scale_color_brewer(palette = "Dark2") + 
-    xlim(-3, 7) + 
+    xlim(-5, 10) + 
     ylim(0, 60) + 
     labs(y = "", x = "cosine similarity ratio \n (Hate speech/Counterspeech)",
          col = "Category", shape = "Category") + 
@@ -155,7 +171,7 @@ con2nplot <- function(corpus, keyword, local_glove, local_transform) {
 }
 
 
-df2cm <- function(corpus, count_min = 5, window_size = 6) {
+df2cm <- function(corpus, count_min = 10, window_size = 6) {
   
   ############################### Create VOCAB ###############################
   
@@ -181,7 +197,7 @@ df2cm <- function(corpus, count_min = 5, window_size = 6) {
   return(fcm_cr)
 }
 
-df2ltm <- function(corpus, local_glove, count_min = 5, window_size = 6) {
+df2ltm <- function(corpus, local_glove, count_min = 10, window_size = 6) {
   
   ############################### Create VOCAB ###############################
   
@@ -210,7 +226,7 @@ df2ltm <- function(corpus, local_glove, count_min = 5, window_size = 6) {
   return(local_transform)
 }
 
-df2vec <- function(corpus, count_min = 5, window_size = 6, dims = 50) {
+df2vec <- function(corpus, count_min = 10, window_size = 6, dims = 50) {
   
   ############################### Create VOCAB ###############################
   
