@@ -46,7 +46,7 @@ purrr::walk(file.list, source)
 
 - 5,109,492 obs 
 
-```{r eval = FALSE}
+```{r}
 parsed <- readRDS(here("processed_data", "parsed.rds"))
 
 parsed <- parsed %>%
@@ -73,21 +73,11 @@ nrow(df) # 5109492
 ```
 
 ```{r}
-# Add date variable 
-df$date <- as.POSIXct(df[["created_at"]], tz = "UTC", format = "%a %b %d %H:%M:%S %z %Y") %>% word(1)
-
-df <- df %>%
-  mutate(trump_speech = if_else(date >= as.Date(c("2020-03-16")), 1, 0)) %>%
-  select(-c("created_at"))
-
-# Preprocess text 
-df$clean_text <- clean_text(df$full_text)
-
 df_usa <- df %>%
   filter(str_detect(country, "us|US"))
 
 # Mutate columns 
-df <- df %>% 
+df_usa <- df_usa %>% 
   mutate(chinese_virus = as.numeric(str_detect(full_text, "chinese flu|chineseflu|chinese virus|chinesevirus")),
          kung_flu = as.numeric(str_detect(full_text, "kung flu|kungflu")), 
          wuhan_virus = as.numeric(str_detect(full_text, "wuhan virus|wuhanvirus")))
@@ -96,5 +86,5 @@ df <- df %>%
 # Export 
 
 ```{r}
-save(df, df_usa, file = here("processed_data", "df_ready.Rdata"))
+save(df_usa, file = here("processed_data", "df_ready.Rdata"))
 ```

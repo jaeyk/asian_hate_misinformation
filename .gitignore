@@ -2,9 +2,5 @@
 .Rhistory
 .RData
 .Ruserdata
-*.csv
-*.tsv 
-*.jsonl 
-*.rds 
-*.pdf 
-*.log
+/processed_data
+/raw_data

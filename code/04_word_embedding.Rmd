@@ -42,24 +42,30 @@ library(conText)
 theme_set(theme_clean())
 
 source(here("functions", "utils.R"))
-
 ```
 
 ## Files 
 
 ```{r}
 load(here("processed_data", "df_ready.Rdata"))
+```
 
+```{r}
+df_usa$org_label <- df_usa$Label 
+corpus <- df_usa %>%
+  filter(Label %in% c("Hate", "Counterhate")) %>%
+  mutate(Label = if_else(Label == "Hate", 1, 0))
 rm(df_usa)
 ```
 
 ```{r}
-df$org_label <- df$Label 
-corpus <- df %>%
-  filter(country == "us" | country == "US") %>%
-  filter(Label %in% c("Hate", "Counterhate")) %>%
-  mutate(Label = if_else(Label == "Hate", 1, 0))
-rm(df)
+corpus$date <- as.POSIXct(corpus[["created_at"]], tz = "UTC", format = "%a %b %d %H:%M:%S %z %Y") %>% word(1)
+
+corpus <- corpus %>%
+  mutate(trump_speech = if_else(date >= as.Date(c("2020-03-16")), 1, 0)) %>%
+  select(-c("created_at"))
+
+corpus$trump_speech[1:5]
 ```
 
 ```{r}
