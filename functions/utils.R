@@ -82,9 +82,6 @@ clean_text <- function(full_text) {
 }
 
 con2nplot <- function(corpus, keyword, local_glove, local_transform) {
-
-  set.seed(1234L)
-
   # Latino context
   contextPre <- get_context(x = corpus$clean_text[corpus$Label == 1], target = keyword)
 

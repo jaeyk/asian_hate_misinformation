@@ -153,6 +153,12 @@ reg_plot
 ggsave(here("outputs", "embed_reg.png"))
 ```
 
+# Exploration 
+
+```{r}
+corpus$full_text[str_detect(corpus$full_text, "selling")][1:20]
+```
+
 ## Nearest neighbors 
 
 ### ALC embedding 
@@ -187,4 +193,8 @@ nns_hate
 ggsave(here("outputs", "nns_hate.png"),
        width = 15, height = 10
        )
+```
+
+```{r}
+
 ```
