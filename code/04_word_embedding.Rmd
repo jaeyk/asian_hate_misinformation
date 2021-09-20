@@ -194,3 +194,21 @@ ggsave(here("outputs", "nns_hate.png"),
        width = 15, height = 10
        )
 ```
+
+# Additional tests 
+
+```{r}
+corpus <- corpus %>%
+  mutate(bat = if_else(str_detect(full_text, "bat"), 1, 0),
+         propaganda = if_else(str_detect(full_text, "propaganda"), 1, 0))
+
+corpus %>%
+  group_by(trump_speech, Label) %>%
+  summarize(mean_bat = mean(bat),
+            mean_propanda = mean(propaganda)) %>%
+  pivot_longer(contains("mean"),
+               "type") %>%
+  ggplot(aes(x = trump_speech, y = value, fill = Label)) +
+  geom_col(position = "dodge2") +
+  facet_wrap(~type)
+```
