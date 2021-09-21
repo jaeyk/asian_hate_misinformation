@@ -66,16 +66,18 @@ clean_text <- function(full_text) {
     # Remove all non-alpha characters
     gsub("[^[:alpha:]]", " ", .) %>%
     # remove 1 letter words
-    str_replace_all("\\b\\w{1}\\b", "") %>%
+    str_replace_all("\\b\\w{1,2}\\b", "") %>%
     # remove excess white space
     str_replace_all("^ +| +$|( ) +", "\\1")
 
-  # Remove stopwords
   vec <- vec %>%
     replace_html() %>%
-    replace_url()
+    replace_url() %>%
+    replace_contraction() %>%
+    replace_hash() %>%
+    replace_tag()
 
-  vec <- tm::removeWords(vec, words = c(stopwords(source = "snowball")))
+  vec <- tm::removeWords(vec, words = c(stopwords(source = "snowball"), "moron", "asshole", "fuckin", "wtf"))
 
   return(vec)
 
@@ -105,7 +107,6 @@ con2nplot <- function(corpus, keyword, local_glove, local_transform) {
   # exclude the keyword
   local_vocab <- setdiff(local_vocab, c(keyword))
 
-  set.seed(1234)
   contrast_target <- contrast_nns(
     context1 = contextPre$context,
     context2 = contextPost$context,
@@ -113,14 +114,14 @@ con2nplot <- function(corpus, keyword, local_glove, local_transform) {
     transform_matrix = local_transform,
     transform = TRUE,
     bootstrap = TRUE,
-    num_bootstraps = 20,
+    num_bootstraps = 100,
     permute = TRUE,
     num_permutations = 100,
     candidates = local_vocab,
     norm = "l2")
 
   # define top N of interest
-  N <- 30
+  N <- 40
 
   # first get each party's nearest neighbors (output by the contrast_nns function)
   nnsPre <- contrast_target$nns1
@@ -137,9 +138,9 @@ con2nplot <- function(corpus, keyword, local_glove, local_transform) {
   nns_ratio <- contrast_target$nns_ratio %>%
     dplyr::filter(Term %in% top_nns) %>%
     mutate(group = case_when(
-      Term %in% nnsPre$Term[1:N] & !(Term %in% nnsPost$Term[1:N]) ~ "Hate speech",
-      !(Term %in% nnsPre$Term[1:N]) & Term %in% nnsPost$Term[1:N] ~ "Counterpspeech",
-      Term %in% shared_nns ~ "Shared"),
+      (Term %in% nnsPre$Term[1:N]) & !(Term %in% nnsPost$Term[1:N]) ~ "Hate speech",
+      !(Term %in% nnsPre$Term[1:N]) & (Term %in% nnsPost$Term[1:N]) ~ "Counterpspeech",
+      (Term %in% shared_nns) ~ "Shared"),
       significant = if_else(Empirical_Pvalue < 0.01, "yes", "no"))
 
   # order Terms by Estimate
@@ -152,19 +153,14 @@ con2nplot <- function(corpus, keyword, local_glove, local_transform) {
   # plot
   nns_ratio %>%
     ggplot() +
-    geom_point(aes(x = Estimate, y = tokenID, color = group, shape = group),
-               data = nns_ratio, size = 2) +
+    geom_point(aes(x = Estimate, y = tokenID, color = group, shape = group), size = 2) +
     geom_vline(xintercept = 1, colour = "black", linetype = "dashed",
                size = 0.5) +
     geom_text(
-      aes(x = Estimate, y = tokenID, label = Term_Sig),
-      data = nns_ratio,
-      hjust = if_else(nns_ratio$Estimate > 1, -0.2, 1.2),
-      vjust = 0.25,
-      size = 5) +
+      aes(x = Estimate, y = tokenID, label = Term_Sig), hjust = if_else(nns_ratio$Estimate > 1, -0.2, 1.2), vjust = 0.25, size = 5) +
     scale_color_brewer(palette = "Dark2") +
-    xlim(-5, 10) +
-    ylim(0, 60) +
+    xlim(-30, 30) +
+    ylim(0, 50) +
     labs(y = "", x = "cosine similarity ratio \n (Hate speech/Counterspeech)",
          col = "Category", shape = "Category") +
     theme(legend.position = "bottom")
@@ -187,7 +183,7 @@ df2cm <- function(corpus, count_min = 10, window_size = 6) {
   vocab_pruned <- prune_vocabulary(vocab, term_count_min = count_min)
 
   # use quanteda's fcm to create an fcm matrix
-  fcm_cr <- tokens(corpus$clean_text) %>%
+  fcm_cr <- quanteda::tokens(corpus$clean_text) %>%
     quanteda::fcm(context = "window", count = "frequency",
                   window = window_size, weights = rep(1, window_size), tri = FALSE)
 
@@ -213,7 +209,7 @@ df2ltm <- function(corpus, local_glove, count_min = 10, window_size = 6) {
   vocab_pruned <- prune_vocabulary(vocab, term_count_min = count_min)
 
   # use quanteda's fcm to create an fcm matrix
-  fcm_cr <- tokens(corpus$clean_text) %>%
+  fcm_cr <- quanteda::tokens(corpus$clean_text) %>%
     quanteda::fcm(context = "window", count = "frequency",
                   window = window_size, weights = rep(1, window_size), tri = FALSE)
 
@@ -282,7 +278,7 @@ get_bt_terms <- function(speech_n, label_n, keyword, word_n) {
     transform = TRUE,
     candidates = local_vocab,
     bootstrap = TRUE,
-    num_bootstraps = 20,
+    num_bootstraps = 100,
     N = word_n,
     norm = "l2")
 

@@ -22,6 +22,7 @@ pacman::p_load(
   here,
   tidytext, # text analysis 
   textclean,
+  textstem, 
   ggthemes,
   text2vec, # word embedding 
   widyr,
@@ -96,6 +97,7 @@ t.test(subset(test$counterhate, test$trump_speech == 0),
 ## Local embedding and matrix 
 
 ```{r}
+set.seed(20200921)
 local_glove <- df2vec(corpus)
 local_transform <- df2ltm(corpus, local_glove)
 
@@ -108,7 +110,7 @@ save(local_glove, local_transform,
 ### Regression 
 
 ```{r}
-mod <- conText(formula = chinese ~ trump_speech + Label, 
+mod <- conText(formula = chinesevirus ~ trump_speech + Label, 
           data = corpus, 
           text_var = 'clean_text', 
           pre_trained = local_glove,
@@ -124,11 +126,9 @@ mod <- conText(formula = chinese ~ trump_speech + Label,
           case_insensitive = TRUE, 
           hard_cut = FALSE, 
           verbose = FALSE)
-```
 
-```{r}
 plot_tibble <- mod$normed_betas %>% 
-  mutate(Coefficient = c("Trump speech", "Hate label")) %>% 
+  mutate(Coefficient = c("Trump tweet", "Hate label")) %>% 
   mutate(Coefficient = factor(Coefficient, levels = Coefficient))
 
 plot_tibble
@@ -143,20 +143,18 @@ reg_plot <- plot_tibble %>%
     1.96 * Std.Error, ymax = Normed_Estimate + 1.96 * Std.Error), size = 0.75, width = 0.15, 
     position = position_dodge(0.9)) + 
   ylab("Norm of beta hats") + 
-  geom_text(aes(label = c("***", "***")), position = position_dodge(width = 0.9), hjust = 0.5, vjust = -1, size = 8) + 
   theme(axis.text.x = element_text(size = 10, angle = 90, vjust = 0.5, hjust = 1),
           axis.text.y = element_text(size = 10)) +
-  ylim(c(0,1.4)) +
-  labs(title = "Keyword: Chinese")
+  labs(title = "Keyword: Chinese virus")
 
 reg_plot
-ggsave(here("outputs", "embed_reg.png"))
+ggsave(here("outputs", "embedreg.png"))
 ```
 
 # Exploration 
 
 ```{r}
-corpus$full_text[str_detect(corpus$full_text, "selling")][1:20]
+corpus$full_text[str_detect(corpus$full_text, "selling")][1:3]
 ```
 
 ## Nearest neighbors 
@@ -164,33 +162,34 @@ corpus$full_text[str_detect(corpus$full_text, "selling")][1:20]
 ### ALC embedding 
 
 ```{r}
-hate_post_bt <- get_bt_terms(1, 1, "chinese", 100)
-hate_pre_bt <- get_bt_terms(0, 1, "chinese", 100)
-counterhate_post_bt <- get_bt_terms(1, 0, "chinese", 100)
-counterhate_pre_bt <- get_bt_terms(0, 0, "chinese", 100)
+set.seed(1234L)
+hate_post_bt <- get_bt_terms(1, 1, "chinesevirus", 100)
+hate_pre_bt <- get_bt_terms(0, 1, "chinesevirus", 100)
+counterhate_post_bt <- get_bt_terms(1, 0, "chinesevirus", 100)
+counterhate_pre_bt <- get_bt_terms(0, 0, "chinesevirus", 100)
 ```
 
 ```{r}
-terms2plot(hate_pre_bt, counterhate_pre_bt, "Chinese", "Pre-Trump Speech") + terms2plot(hate_post_bt, counterhate_post_bt, "Chinese", "Post-Trump Speech")
+terms2plot(hate_pre_bt, counterhate_pre_bt, "Chinese virus", "Pre-Trump tweet") + terms2plot(hate_post_bt, counterhate_post_bt, "Chinese virus", "Post-Trump tweet")
 
-ggsave(here("outputs", "bt_chinese.png"), width = 10, height = 10)
+ggsave(here("outputs", "btchinese.png"), width = 10, height = 10)
 
-terms2plot_sep(hate_pre_bt, counterhate_pre_bt, "Chinese", "Pre-Trump Speech") + terms2plot_sep(hate_post_bt, counterhate_post_bt, "Chinese", "Post-Trump Speech")
+terms2plot_sep(hate_pre_bt, counterhate_pre_bt, "Chinese virus", "Pre-Trump tweet") + terms2plot_sep(hate_post_bt, counterhate_post_bt, "Chinese virus", "Post-Trump tweet")
 
-ggsave(here("outputs", "bt_chinese_sep.png"), width = 10, height = 10)
+ggsave(here("outputs", "btchinesesep.png"), width = 10, height = 10)
 ```
 
 ### Contrasting 
 
 ```{r}
-set.seed(1234L)
+set.seed(20200921)
 
-nns_hate <- (con2nplot(subset(corpus, trump_speech == 0), c("chinese"), local_glove, local_transform) + labs(title = "Pre-Trump speech", subtitle = "Keyword: Chinese")) +
-(con2nplot(subset(corpus, trump_speech == 1), c("chinese"), local_glove, local_transform) + labs(title = "Post-Trump speech", subtitle = "Keyword: Chinese"))
+nns_hate <- (con2nplot(subset(corpus, trump_speech == 0), c("chinesevirus"), local_glove, local_transform) + labs(title = "Pre-Trump tweet", subtitle = "Keyword: Chinese virus")) +
+(con2nplot(subset(corpus, trump_speech == 1), c("chinesevirus"), local_glove, local_transform) + labs(title = "Post-Trump tweet", subtitle = "Keyword: Chinese virus"))
 
 nns_hate 
 
-ggsave(here("outputs", "nns_hate.png"),
+ggsave(here("outputs", "nnshate.png"),
        width = 15, height = 10
        )
 ```
@@ -198,17 +197,60 @@ ggsave(here("outputs", "nns_hate.png"),
 # Additional tests 
 
 ```{r}
-corpus <- corpus %>%
+corpus_copy <- corpus %>%
   mutate(bat = if_else(str_detect(full_text, "bat"), 1, 0),
-         propaganda = if_else(str_detect(full_text, "propaganda"), 1, 0))
+         weapon = if_else(str_detect(full_text, "weapon"), 1, 0),
+         propaganda = if_else(str_detect(full_text, "propaganda"), 1, 0)) %>%
+  mutate(trump_speech = recode(trump_speech, 
+                               `1` = "Post-Trump tweet",
+                               `0` = "Pre-Trump tweet")) %>%
+  mutate(trump_speech = factor(trump_speech, 
+                               levels = c("Pre-Trump tweet", "Post-Trump tweet")),
+         Label = recode(Label, 
+                        `1` = "Hate speech",
+                        `0` = "Counterspeech"))
 
-corpus %>%
+corpus_copy %>%
+  group_by(Label) %>%
+  summarize(mean_bat = round(mean(bat),3),
+            mean_propaganda = round(mean(propaganda),3))
+
+bat_sum <- corpus_copy %>%
   group_by(trump_speech, Label) %>%
-  summarize(mean_bat = mean(bat),
-            mean_propanda = mean(propaganda)) %>%
-  pivot_longer(contains("mean"),
-               "type") %>%
-  ggplot(aes(x = trump_speech, y = value, fill = Label)) +
-  geom_col(position = "dodge2") +
-  facet_wrap(~type)
+  summarize(mean = mean(bat),
+            ci_high = ci.high(bat),
+            ci_low = ci.low(bat))
+
+weapon_sum <- corpus_copy %>%
+  group_by(trump_speech, Label) %>%
+  summarize(mean = mean(weapon),
+            ci_high = ci.high(weapon),
+            ci_low = ci.low(weapon))
+
+propaganda_sum <- corpus_copy %>%
+  group_by(trump_speech, Label) %>%
+  summarize(mean = mean(propaganda),
+            ci_high = ci.high(propaganda),
+            ci_low = ci.low(propaganda))
+
+bat_propaganda_sum <- bind_rows(
+  mutate(bat_sum, Keyword = "Bat"),
+  mutate(weapon_sum, Keyword = "Weapon"),
+  mutate(propaganda_sum, Keyword = "Propaganda"))
+```
+
+```{r}
+bat_propaganda_sum %>%
+  mutate(Keyword = factor(Keyword, levels = c("Bat", "Weapon", "Propaganda"))) %>%
+  ggplot(aes(x = trump_speech, y = mean, 
+             ymax = mean + ci_high, 
+             ymin = mean - ci_low)) + 
+  geom_pointrange() +
+  facet_grid(Keyword~Label) +
+  ggrepel::geom_text_repel(aes(label = glue("{round(mean, 3)*100}%"))) +
+  scale_y_continuous(labels = scales::percent) +
+  labs(x = "", 
+       y = "Percentage of tweets")
+
+ggsave(here("outputs", "batpropaganda.png"))
 ```
