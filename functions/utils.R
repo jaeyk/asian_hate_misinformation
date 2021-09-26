@@ -537,7 +537,8 @@ terms2plot <- function(df1, df2, keyword, year) {
     labs(subtitle = glue("Keyword: {keyword}"),
          title = glue("{year}"),
          x = "",
-         y = "Bootstrapped estimate") +
+         y = "Bootstrapped estimate",
+         col = "Label") +
     theme(legend.position = "bottom") +
     scale_color_brewer(palette = "Dark2")
 
@@ -557,7 +558,8 @@ terms2plot_sep <- function(df1, df2, keyword, year) {
     labs(subtitle = glue("Keyword: {keyword}"),
          title = glue("{year}"),
          x = "",
-         y = "Bootstrapped estimate") +
+         y = "Bootstrapped estimate",
+         col = "Label") +
     theme(legend.position = "bottom") +
     scale_color_brewer(palette = "Dark2")
 

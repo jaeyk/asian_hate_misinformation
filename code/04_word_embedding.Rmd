@@ -184,8 +184,8 @@ ggsave(here("outputs", "btchinesesep.png"), width = 10, height = 10)
 ```{r}
 set.seed(20200921)
 
-nns_hate <- (con2nplot(subset(corpus, trump_speech == 0), c("chinesevirus"), local_glove, local_transform) + labs(title = "Pre-Trump tweet", subtitle = "Keyword: Chinese virus")) +
-(con2nplot(subset(corpus, trump_speech == 1), c("chinesevirus"), local_glove, local_transform) + labs(title = "Post-Trump tweet", subtitle = "Keyword: Chinese virus"))
+nns_hate <- (con2nplot(subset(corpus, trump_speech == 0), c("chinesevirus"), local_glove, local_transform) + labs(title = "Pre-Trump tweet", subtitle = "Keyword: Chinese virus", col = "Label")) +
+(con2nplot(subset(corpus, trump_speech == 1), c("chinesevirus"), local_glove, local_transform) + labs(title = "Post-Trump tweet", subtitle = "Keyword: Chinese virus", col = "Label"))
 
 nns_hate 
 
@@ -253,4 +253,43 @@ bat_propaganda_sum %>%
        y = "Percentage of tweets")
 
 ggsave(here("outputs", "batpropaganda.png"))
+
+2.65/0.52
+```
+
+# Inspection
+
+```{r}
+corpus$trump_speech[corpus$trump_speech == 1] <- "Post-Trump tweet"
+
+corpus$trump_speech[corpus$trump_speech == 0] <- "Pre-Trump tweet"
+
+corpus$trump_speech <- factor(corpus$trump_speech, levels = c("Pre-Trump tweet", "Post-Trump tweet"))
+```
+
+```{r}
+corpus %>%
+  group_by(Label, trump_speech) %>%
+  mutate(hate = if_else(Label == 1, 1, 0),
+         counterhate = if_else(Label != 1, 1, 0)) %>%
+  summarize("Hate" = sum(hate),
+            "Counterhate" = sum(counterhate)) %>% 
+  pivot_longer(c("Hate", "Counterhate"),
+               "type") %>%
+  ggplot(aes(x = trump_speech, y = value, fill = type)) +
+  geom_col(position = position_dodge()) +
+  labs(fill = "Label",
+       y = "Count of Tweets",
+       x = "")
+
+ggsave(here("outputs", "propchange.png"))
+```
+
+```{r}
+subset(corpus, trump_speech == 0)$full_text[str_detect(subset(corpus, trump_speech == 0)$full_text, "machine")]
+
+subset(corpus, trump_speech == 1)$full_text[str_detect(subset(corpus, trump_speech == 1)$full_text, "racism")]
+
+subset(corpus, trump_speech == 1)$full_text[str_detect(subset(corpus, trump_speech == 1)$full_text, "sympathizer")]
+
 ```
