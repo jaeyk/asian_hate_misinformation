@@ -17,13 +17,13 @@ Author: Jae Yeon Kim (corresponding author, jkim638@jhu.edu) and Aniket Kesari
 
 ## Data collection 
 
-**Raw data: tweet_ids**
+### Raw data: tweet_ids
 
 The data source is [COVID-Hate tweet data](http://claws.cc.gatech.edu/covid/#dataset) created by [Ziems et al (2020)](http://claws.cc.gatech.edu/covid). The original dataset only provided tweet IDs, not tweets, following Twitter's [developer terms](https://developer.twitter.com/en/developer-terms/more-on-restricted-use-cases). We turned these tweet IDs back into a JSON file (tweets) using [Twarc](https://github.com/DocNow/twarc). This process is called hydrating and is very time-consuming. We used [tidytweetjson](https://github.com/jaeyk/tidytweetjson), an R package developed by Jae Yeon Kim (one of the co-authors), to parses this large JSON file into a tidyverse-ready data frame. To help replication, We also saved the IDs of the tweets by typing the following command in the terminal: `grep "INFO archived" twarc.log | awk '{print $5}' > tweet_ids` (saved in [`\raw_data`](https://github.com/jaeyk/asian_hate_misinformation/blob/master/raw_data/tweet_ids)).
 
-**Replication code**
+### Replication code
 
-## Data collection and wrangling 
+#### Data collection and wrangling 
 
 * [01_filter_geocoded_tweet_ids.Rmd](https://github.com/jaeyk/asian_hate_misinformation/blob/master/code/01_filter_geocoded_tweet_ids.Rmd): R markdown for filtering the geocoded tweets from the original dataset
 
@@ -31,10 +31,14 @@ The data source is [COVID-Hate tweet data](http://claws.cc.gatech.edu/covid/#dat
 
 * [03_wrangle.Rmd](https://github.com/jaeyk/asian_hate_misinformation/blob/master/code/03_wrangle.Rmd): R markdown file for wrangling the tidied JSON file 
 
-## Data analysis 
+#### Data analysis 
 
 * [04_eda.R](https://github.com/jaeyk/asian_hate_misinformation/blob/master/code/04_eda.R) this R script file produced [Figure 1](https://github.com/jaeyk/asian_hate_misinformation/blob/master/outputs/chinavirusprepostlabel.png) 
 
+<<<<<<< HEAD
 * [05_word_embedding.Rmd](https://github.com/jaeyk/asian_hate_misinformation/blob/master/code/05_word_embedding.Rmd) this R markdown file produced Figures [2](https://github.com/jaeyk/asian_hate_misinformation/blob/master/outputs/propchange.png), [3](https://github.com/jaeyk/asian_hate_misinformation/blob/master/outputs/embedreg.png), and [4](https://github.com/jaeyk/asian_hate_misinformation/blob/master/outputs/btchinesesep.png)
 
 * [06_simulation.r](https://github.com/jaeyk/asian_hate_misinformation/blob/master/code/06_simulation.r) This R file was used to obtain the stable point estimate from the word embedding regression. 
+=======
+* [05_word_embedding.Rmd](https://github.com/jaeyk/asian_hate_misinformation/blob/master/code/05_word_embedding.Rmd) this R script file produced Figures [2](https://github.com/jaeyk/asian_hate_misinformation/blob/master/outputs/propchange.png), [3](https://github.com/jaeyk/asian_hate_misinformation/blob/master/outputs/embedreg.png), and [4](https://github.com/jaeyk/asian_hate_misinformation/blob/master/outputs/btchinesesep.png)
+>>>>>>> b2f6cbc58e2ec840c216e011a6a3378aa46dcb77
