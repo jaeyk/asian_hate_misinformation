@@ -35,4 +35,6 @@ The data source is [COVID-Hate tweet data](http://claws.cc.gatech.edu/covid/#dat
 
 * [04_eda.R](https://github.com/jaeyk/asian_hate_misinformation/blob/master/code/04_eda.R) this R script file produced [Figure 1](https://github.com/jaeyk/asian_hate_misinformation/blob/master/outputs/chinavirusprepostlabel.png) 
 
-* [05_word_embedding.Rmd](https://github.com/jaeyk/asian_hate_misinformation/blob/master/code/05_word_embedding.Rmd) this R script file produced Figures [2](https://github.com/jaeyk/asian_hate_misinformation/blob/master/outputs/propchange.png), [3](https://github.com/jaeyk/asian_hate_misinformation/blob/master/outputs/embedreg.png), and [4](https://github.com/jaeyk/asian_hate_misinformation/blob/master/outputs/btchinesesep.png)
+* [05_word_embedding.Rmd](https://github.com/jaeyk/asian_hate_misinformation/blob/master/code/05_word_embedding.Rmd) this R markdown file produced Figures [2](https://github.com/jaeyk/asian_hate_misinformation/blob/master/outputs/propchange.png), [3](https://github.com/jaeyk/asian_hate_misinformation/blob/master/outputs/embedreg.png), and [4](https://github.com/jaeyk/asian_hate_misinformation/blob/master/outputs/btchinesesep.png)
+
+* [06_simulation.r](https://github.com/jaeyk/asian_hate_misinformation/blob/master/code/06_simulation.r) This R file was used to obtain the stable point estimate from the word embedding regression. 
