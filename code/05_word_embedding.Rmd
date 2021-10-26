@@ -110,6 +110,8 @@ save(local_glove, local_transform,
 ### Regression 
 
 ```{r}
+load(here("processed_data/context_bg.Rdata"))
+
 mod <- conText(formula = chinesevirus ~ trump_speech + Label, 
           data = corpus, 
           text_var = 'clean_text', 
@@ -149,6 +151,7 @@ reg_plot <- plot_tibble %>%
 
 reg_plot
 ggsave(here("outputs", "embedreg.png"))
+ggsave(here("outputs", "embedreg.pdf"))
 ```
 
 # Exploration 
@@ -173,25 +176,7 @@ counterhate_pre_bt <- get_bt_terms(0, 0, "chinesevirus", 100)
 terms2plot(hate_pre_bt, counterhate_pre_bt, "Chinese virus", "Pre-Trump tweet") + terms2plot(hate_post_bt, counterhate_post_bt, "Chinese virus", "Post-Trump tweet")
 
 ggsave(here("outputs", "btchinese.png"), width = 10, height = 10)
-
-terms2plot_sep(hate_pre_bt, counterhate_pre_bt, "Chinese virus", "Pre-Trump tweet") + terms2plot_sep(hate_post_bt, counterhate_post_bt, "Chinese virus", "Post-Trump tweet")
-
-ggsave(here("outputs", "btchinesesep.png"), width = 10, height = 10)
-```
-
-### Contrasting 
-
-```{r}
-set.seed(20200921)
-
-nns_hate <- (con2nplot(subset(corpus, trump_speech == 0), c("chinesevirus"), local_glove, local_transform) + labs(title = "Pre-Trump tweet", subtitle = "Keyword: Chinese virus", col = "Label")) +
-(con2nplot(subset(corpus, trump_speech == 1), c("chinesevirus"), local_glove, local_transform) + labs(title = "Post-Trump tweet", subtitle = "Keyword: Chinese virus", col = "Label"))
-
-nns_hate 
-
-ggsave(here("outputs", "nnshate.png"),
-       width = 15, height = 10
-       )
+ggsave(here("outputs", "btchinese.pdf"), width = 10, height = 10)
 ```
 
 # Additional tests 
