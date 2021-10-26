@@ -21,6 +21,10 @@ Author: Jae Yeon Kim (corresponding author, jkim638@jhu.edu) and Aniket Kesari
 
 The data source is [COVID-Hate tweet data](http://claws.cc.gatech.edu/covid/#dataset) created by [Ziems et al (2020)](http://claws.cc.gatech.edu/covid). The original dataset only provided tweet IDs, not tweets, following Twitter's [developer terms](https://developer.twitter.com/en/developer-terms/more-on-restricted-use-cases). We turned these tweet IDs back into a JSON file (tweets) using [Twarc](https://github.com/DocNow/twarc). This process is called hydrating and is very time-consuming. We used [tidytweetjson](https://github.com/jaeyk/tidytweetjson), an R package developed by Jae Yeon Kim (one of the co-authors), to parses this large JSON file into a tidyverse-ready data frame. To help replication, We also saved the IDs of the tweets by typing the following command in the terminal: `grep "INFO archived" twarc.log | awk '{print $5}' > tweet_ids` (saved in [`\raw_data`](https://github.com/jaeyk/asian_hate_misinformation/blob/master/raw_data/tweet_ids)).
 
+### Processed data: word embedding 
+
+* [context_bg.Rdata](https://github.com/jaeyk/asian_hate_misinformation/blob/master/processed_data/context_bg.Rdata): R data file containing a set of (GloVe) pre-trained embeddings (`local glove`) and a transformation matrix specific to the pre-trained embeddings (`local_transform`)
+
 ### Replication code
 
 #### Data collection and wrangling 
