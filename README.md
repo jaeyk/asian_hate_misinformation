@@ -1,6 +1,6 @@
 # Replication Data and Code for Misinformation and Hate Speech: The Case of Anti-Asian Hate Speech During the COVID-19 Pandemic
 
-Author: Jae Yeon Kim (corresponding author, jkim638@jhu.edu) and Aniket Kesari 
+Authors: Jae Yeon Kim (corresponding author, jkim638@jhu.edu) and Aniket Kesari 
 
 **Session information**
 
